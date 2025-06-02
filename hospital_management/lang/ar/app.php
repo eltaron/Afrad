@@ -6,6 +6,8 @@ return [
     'hospital_forces' => 'قوات المستشفى',
     'personnel' => 'فرد',
     'all_personnel' => 'كافة الأفراد',
+    'military_personnel' => 'الأفراد العسكريون',
+    'civilian_personnel' => 'الأفراد المدنيون',
     'department' => 'قسم',
     'departments' => 'الأقسام',
     'violation_type' => 'نوع المخالفة',
@@ -63,6 +65,9 @@ return [
     'leave_approved_successfully' => 'تمت الموافقة على طلب الإجازة بنجاح.',
     'leave_rejected_successfully' => 'تم رفض طلب الإجازة بنجاح.',
     'leave_not_approved_for_permit' => 'لا يمكن إنشاء تصريح إجازة لطلب لم تتم الموافقة عليه.',
+    'invalid_hospital_force_for_role' => 'قوة المستشفى المحددة غير صالحة لدورك.',
+    'unauthorized_action' => 'إجراء غير مصرح به.',
+    'unauthorized_personnel_selection' => 'لا يمكنك تحديد هذا الفرد.',
     'none' => 'لا يوجد',
 
 

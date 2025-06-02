@@ -7,6 +7,7 @@ use App\Models\Personnel;
 use App\Models\LeaveType;
 use App\Models\PersonnelLeave;
 use App\Models\PersonnelViolation;
+use App\Models\HospitalForce; // Added for domain filtering
 use App\Http\Requests\PeriodReportRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,16 +15,55 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
-    /**
-     * Report on personnel eligible for leave today.
-     */
+    // Helper to get officer's domain personnel IDs
+    private function getOfficerDomainPersonnelIds($user)
+    {
+        $forceQuery = HospitalForce::query();
+        if ($user->isMilitaryAffairsOfficer()) {
+            $forceNames = ['جنود', 'صف ضباط'];
+            $forceQuery->whereJsonContains('name->ar', $forceNames[0])
+                       ->orWhereJsonContains('name->ar', $forceNames[1]);
+        } elseif ($user->isCivilianAffairsOfficer()) {
+            $forceName = 'مدنين';
+            $forceQuery->whereJsonContains('name->ar', $forceName);
+        } else {
+            return null; // Not an officer, or admin (admin implies no restriction from this helper)
+        }
+        $domainForceIds = $forceQuery->pluck('id');
+        return Personnel::whereIn('hospital_force_id', $domainForceIds)->pluck('id');
+    }
+
+    // Authorization check for accessing a specific leave permit
+    private function authorizeLeavePermitAccess(PersonnelLeave $personnelLeave)
+    {
+        $user = Auth::user();
+        if ($user->isAdmin()) {
+            return;
+        }
+        $officerPersonnelIds = $this->getOfficerDomainPersonnelIds($user);
+        if ($officerPersonnelIds === null || !$officerPersonnelIds->contains($personnelLeave->personnel_id)) {
+            abort(403, __('app.unauthorized_action'));
+        }
+    }
+
     public function dailyEligibleForLeave(Request $request)
     {
-        $activePersonnel = Personnel::where(function ($query) {
+        $user = Auth::user();
+        $personnelQuery = Personnel::where(function ($query) {
             $query->whereNull('termination_date')
                   ->orWhere('termination_date', '>', Carbon::now());
-        })->with('hospitalForce')->get(); // Eager load hospitalForce for display
+        })->with('hospitalForce');
 
+        if (!$user->isAdmin()) {
+            $officerPersonnelIds = $this->getOfficerDomainPersonnelIds($user);
+            if ($officerPersonnelIds !== null) {
+                $personnelQuery->whereIn('id', $officerPersonnelIds);
+            } else {
+                 $personnelQuery->whereRaw('1 = 0'); // No results if not admin and not a recognized officer role
+            }
+        }
+        $activePersonnel = $personnelQuery->get();
+        // ... rest of the logic remains the same
         $allLeaveTypes = LeaveType::all();
         $eligiblePersonnelReport = [];
 
@@ -31,12 +71,11 @@ class ReportController extends Controller
             $eligibleLeaves = [];
             foreach ($allLeaveTypes as $leaveType) {
                 if ($leaveType->isApplicable($personnel) && !$personnel->hasTakenLeaveRecently($leaveType)) {
-                    $eligibleLeaves[] = $leaveType->name; // Name will be translated by accessor/locale
+                    $eligibleLeaves[] = $leaveType->name;
                 }
             }
             if (count($eligibleLeaves) > 0) {
                 $eligiblePersonnelReport[] = [
-                    // Pass the whole personnel object or specific fields
                     'personnel_name' => $personnel->name,
                     'military_id' => $personnel->military_id,
                     'rank' => $personnel->rank,
@@ -49,15 +88,14 @@ class ReportController extends Controller
         return view('admin.reports.daily_eligible_for_leave', compact('eligiblePersonnelReport'));
     }
 
-    /**
-     * Data for a specific leave permit - Renamed to leavePermitView for clarity.
-     */
     public function leavePermitData(PersonnelLeave $personnelLeave)
     {
-        if ($personnelLeave->status !== 'approved') {
-            return redirect()->back()->with('error', __('app.leave_not_approved_for_permit')); // Add to lang
-        }
+        $this->authorizeLeavePermitAccess($personnelLeave); // Authorization check
 
+        if ($personnelLeave->status !== 'approved') {
+            return redirect()->back()->with('error', __('app.leave_not_approved_for_permit'));
+        }
+        // ... rest of the method remains the same
         $personnelLeave->load([
             'personnel.hospitalForce',
             'personnel.departmentHistory' => function ($query) {
@@ -72,10 +110,9 @@ class ReportController extends Controller
 
         $currentDepartmentHistory = $personnelLeave->personnel->departmentHistory->first();
         $currentDepartmentName = $currentDepartmentHistory && $currentDepartmentHistory->department
-            ? $currentDepartmentHistory->department->name // Will be translated by accessor
+            ? $currentDepartmentHistory->department->name
             : null;
 
-        // Prepare data in a simple array for the Blade view
         $leaveData = [
             'permit_id' => $personnelLeave->id,
             'personnel_name' => $personnelLeave->personnel->name,
@@ -96,12 +133,10 @@ class ReportController extends Controller
         return view('admin.reports.leave_permit', compact('leaveData'));
     }
 
-    /**
-     * Report on leaves within a specified period.
-     */
     public function periodLeaveReport(PeriodReportRequest $request)
     {
         $validated = $request->validated();
+        $user = Auth::user();
         $query = PersonnelLeave::with(['personnel.hospitalForce', 'leaveType', 'approver'])
             ->where(function($q) use ($validated) {
                 $q->whereBetween('start_date', [$validated['start_date'], $validated['end_date']])
@@ -112,6 +147,14 @@ class ReportController extends Controller
                   });
             });
 
+        if (!$user->isAdmin()) {
+            $officerPersonnelIds = $this->getOfficerDomainPersonnelIds($user);
+             if ($officerPersonnelIds !== null) {
+                $query->whereIn('personnel_id', $officerPersonnelIds);
+            } else {
+                 $query->whereRaw('1 = 0');
+            }
+        }
 
         if ($request->filled('personnel_id')) {
             $query->where('personnel_id', $request->input('personnel_id'));
@@ -123,19 +166,25 @@ class ReportController extends Controller
             $query->where('status', $request->input('status'));
         }
 
-        // TODO: Add role-based filtering for non-admins
-        $leaves = $query->orderBy('start_date')->paginate(30); // Paginate for web view
+        $leaves = $query->orderBy('start_date')->paginate(30);
         return view('admin.reports.period_leave_report', compact('leaves'));
     }
 
-    /**
-     * Report on violations within a specified period.
-     */
     public function periodViolationReport(PeriodReportRequest $request)
     {
         $validated = $request->validated();
+        $user = Auth::user();
         $query = PersonnelViolation::with(['personnel.hospitalForce', 'violationType'])
             ->whereBetween('violation_date', [$validated['start_date'], $validated['end_date']]);
+
+        if (!$user->isAdmin()) {
+            $officerPersonnelIds = $this->getOfficerDomainPersonnelIds($user);
+             if ($officerPersonnelIds !== null) {
+                $query->whereIn('personnel_id', $officerPersonnelIds);
+            } else {
+                 $query->whereRaw('1 = 0');
+            }
+        }
 
         if ($request->filled('personnel_id')) {
             $query->where('personnel_id', $request->input('personnel_id'));
@@ -144,8 +193,7 @@ class ReportController extends Controller
             $query->where('violation_type_id', $request->input('violation_type_id'));
         }
 
-        // TODO: Add role-based filtering for non-admins
-        $violations = $query->orderBy('violation_date')->paginate(30); // Paginate for web view
+        $violations = $query->orderBy('violation_date')->paginate(30);
         return view('admin.reports.period_violation_report', compact('violations'));
     }
 }

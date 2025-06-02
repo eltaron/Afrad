@@ -1,61 +1,136 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Hospital Personnel Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Overview
 
-## About Laravel
+The Hospital Personnel Management System is a comprehensive web application designed to manage personnel data, departmental assignments, violations, leaves, and reporting for a hospital environment. It supports distinct user roles for administrative staff, military affairs officers, and civilian affairs officers, ensuring data segregation and appropriate access levels. The application features a primarily Arabic interface with a dark blue theme and includes a RESTful API for potential external integrations.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Features
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+*   **Personnel Management:**
+    *   Detailed registration for military and civilian personnel.
+    *   Tracking of military ID, national ID, contact information, recruitment/termination dates.
+    *   Assignment of job titles (for civilians) and ranks (for military).
+*   **Department Management:**
+    *   Creation and management of hospital departments.
+    *   History of personnel assignments to various departments with start and end dates.
+*   **Violation Tracking:**
+    *   Definition of violation types with descriptions.
+    *   Recording of personnel violations, including date, penalty type (confinement, detention, salary deduction), penalty duration, and notes.
+*   **Leave Management System:**
+    *   Customizable leave types with default durations and applicability rules (e.g., for all, military only, civilian only, specific ranks/titles).
+    *   Special handling for "permissions" (اذن) as a type of leave.
+    *   Workflow for leave requests: requested, approved, rejected, taken.
+    *   Recording of approver for each leave.
+*   **User Roles & Authorization:**
+    *   **Admin:** Full system control, manages core data (Hospital Forces, Departments, Violation Types, Leave Types), all personnel records, and can oversee all system operations.
+    *   **Military Affairs Officer:** Manages military personnel (e.g., 'جنود', 'صف ضباط'), their leaves, violations, and related reports.
+    *   **Civilian Affairs Officer:** Manages civilian personnel (e.g., 'مدنين'), their leaves, violations, and related reports.
+*   **Reporting System:**
+    *   Daily report of personnel eligible for leave.
+    *   Generation of printable leave permits for approved leaves.
+    *   Periodical reports for leaves and violations, filterable by date range and other criteria.
+*   **User Interface:**
+    *   Primarily Arabic language interface.
+    *   Custom dark blue theme for a modern look and feel.
+    *   Responsive design elements.
+*   **API:**
+    *   RESTful API available under `/api/v1/` for programmatic access.
+    *   Authentication via Laravel Sanctum.
+    *   Standardized JSON responses using API Resources.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Setup Instructions
 
-## Learning Laravel
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository_url> hospital_management
+    cd hospital_management
+    ```
+2.  **Create Environment File:**
+    ```bash
+    cp .env.example .env
+    ```
+3.  **Update Environment Variables:**
+    Open the `.env` file and set your database credentials:
+    ```env
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=hospital_db # Or your preferred database name
+    DB_USERNAME=user # Your database username
+    DB_PASSWORD=password # Your database password
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+    APP_URL=http://localhost # Or your application's URL
+    ```
+4.  **Install Dependencies:**
+    ```bash
+    composer install
+    ```
+5.  **Generate Application Key:**
+    ```bash
+    php artisan key:generate
+    ```
+6.  **Run Database Migrations and Seeders:**
+    (Ensure your database server is running and accessible with the credentials provided in `.env`)
+    ```bash
+    php artisan migrate --seed
+    ```
+    This will create all necessary tables and seed the initial admin user.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+7.  **Install Frontend Dependencies & Build Assets:**
+    ```bash
+    npm install && npm run build
+    ```
+    (Note: `npm run dev` can be used for development to automatically rebuild assets on change).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+8.  **Default Admin Login:**
+    *   **Email:** `admin@example.com`
+    *   **Password:** `password`
+    (These are set in the `AdminUserSeeder`).
 
-## Laravel Sponsors
+9.  **Serve the Application:**
+    ```bash
+    php artisan serve
+    ```
+    Or configure a web server like Nginx or Apache to point to the `public` directory.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## User Roles
 
-### Premium Partners
+*   **Admin:** Has full access to all system features and data. Manages foundational data such as Hospital Forces, Departments, Leave Types, and Violation Types. Can manage all personnel records and view all reports.
+*   **Military Affairs Officer:** Responsible for managing personnel belonging to military hospital forces (e.g., 'جنود', 'صف ضباط'). Can view, create, edit military personnel, manage their leave requests, and view reports relevant to them.
+*   **Civilian Affairs Officer:** Responsible for managing personnel belonging to civilian hospital forces (e.g., 'مدنين'). Can view, create, edit civilian personnel, manage their leave requests, and view reports relevant to them.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## API Overview
 
-## Contributing
+A RESTful API is available for programmatic interaction with the system.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+*   **Base URL:** `/api/v1/`
+*   **Authentication:** Laravel Sanctum (token-based for external clients, SPA cookie-based for same-domain frontends). Ensure you send an `Authorization: Bearer <token>` header for token-based auth or use Sanctum's SPA mechanisms.
+*   **Content Type:** `application/json` for requests and responses.
 
-## Code of Conduct
+### Key Endpoints (Examples):
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+*   `GET /api/v1/user`: Retrieves the authenticated user's details.
+*   `GET /api/v1/personnel`: Retrieves a paginated list of personnel (scoped by role if not admin).
+*   `GET /api/v1/personnel/{personnel}`: Retrieves details for a specific personnel.
+*   `GET /api/v1/personnel-leaves`: Retrieves a list of leave requests (scoped by role).
+*   `POST /api/v1/personnel-leaves`: Submits a new leave request.
+*   `POST /api/v1/personnel-leaves/{personnel_leave}/approve`: Approves a leave request.
+*   `POST /api/v1/personnel-leaves/{personnel_leave}/reject`: Rejects a leave request.
+*   `GET /api/v1/reports/daily-eligible-for-leave`: Gets a report of personnel eligible for leave.
+*   `GET /api/v1/reports/leave-permit/{personnel_leave}`: Gets data for a specific leave permit.
+*   `GET /api/v1/reports/period-leave-report?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`: Gets a report of leaves within a period.
+*   `GET /api/v1/reports/period-violation-report?start_date=YYYY-MM-DD&end_date=YYYY-MM-DD`: Gets a report of violations within a period.
 
-## Security Vulnerabilities
+Responses are structured using Laravel API Resources for consistency. Refer to controller methods and resource classes for detailed request/response formats.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Theme & Font
 
-## License
+The application uses a custom dark blue theme implemented with Tailwind CSS. The primary font used throughout the interface is "Cairo" for optimal Arabic readability.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Localization
+
+The primary language for the user interface is Arabic (`ar`). Core Laravel translation files and application-specific translations are located in `lang/ar/`.
+
+---
+
+This README provides a guide to understanding, setting up, and using the Hospital Personnel Management System. For more detailed information on specific Laravel features, please refer to the official [Laravel documentation](https://laravel.com/docs).
